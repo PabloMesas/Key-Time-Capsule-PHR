@@ -31,6 +31,7 @@ ARCHITECTURE DecrModFunc OF DecryptModule IS
       VARIABLE square : SIGNED((L+1)*2-1 DOWNTO 0);
       -- Modul must have the same length as square to calculate its modulus
       VARIABLE modul : SIGNED((L+1)*2-1 DOWNTO 0);
+      VARIABLE paso: SIGNED (L DOWNTO 0);
       BEGIN
         -- Loading variables
         result := SIGNED('0'&a);
@@ -38,14 +39,15 @@ ARCHITECTURE DecrModFunc OF DecryptModule IS
         -- Setting all bits to 0
         modul := (OTHERS => '0');
         modul := modul + SIGNED('0'&n);
+        paso := (OTHERS => '0');
+        paso := paso + 1;
 
         -- Resolving the [a ^ (2 ^ t) mod n] part
-        WHILE texp > 0
-        LOOP
+        WHILE texp > 0 LOOP
           square := result * result;
           square := square mod modul;
           result := square(L DOWNTO 0); -- We only need lower L bits
-          texp := texp - 1; 
+          texp := texp - paso; 
         END LOOP;
 
         -- Resolving the subtraction part
