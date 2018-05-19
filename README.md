@@ -1,4 +1,4 @@
-# Key-Time-Capsule---K.T.C.---P.H.R.---F.U.K.C.
+# Key-Time-Capsule-PHR
 
 La idea es implementar un sistema de cifrado que permita retener una clave durante un tiempo deseado. Este tipo de servicios se puede aplicar para poder cifrar archivos o documentos sensibles durante un tiempo mínimo como documentos clasificados del gobierno, el bloqueo de unos productos en una subasta o programar rutinas que solo serán efectivas pasado un tiempo.
 La motivación de este proyecto ha surgido por la posibilidad de poder cifrar la clave de acceso de usuario de la videoconsola asegurándose que el acceso queda retenido durante un tiempo mínimo y así poder aprovechar el tiempo para algo más provechoso.
