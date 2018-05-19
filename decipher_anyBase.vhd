@@ -3,7 +3,7 @@
 -- 
 -- Design Name: 
 -- Module Name: decipher_anybase - Behavioural
--- Project Name: Basys 3 Key-Time-Capsule
+-- Project Name: Key-Time-Capsule
 -- Description: 
 -- 
 -- Dependencies: 
