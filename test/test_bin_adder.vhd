@@ -2,7 +2,7 @@
 -- Company: KTC Team
 -- 
 -- Design Name: 
--- Module Name: test_bin_adder - Behavioural
+-- Module Name: test_bin_adder - Behavioral
 -- Project Name: Key-Time-Capsule
 -- Description: 
 -- 
@@ -23,15 +23,15 @@ ENTITY test_bin_adder IS
 END test_bin_adder;
 
 ARCHITECTURE test OF test_bin_adder IS
+-- Signal Declerations
+SIGNAL r1, r2       : std_logic_vector(l-1 DOWNTO 0);
+SIGNAL s            : std_logic_vector(l DOWNTO 0);
 
 COMPONENT bin_adder
     PORT (
-        NUM1, NUM2     : IN std_logic_vector(l-1 DOWNTO 0);
-        SUM            : OUT std_logic_vector(l DOWNTO 0));
+        NUM1, NUM2       : IN std_logic_vector(l-1 DOWNTO 0);
+        SUM              : OUT std_logic_vector(l DOWNTO 0));
 END COMPONENT;
-
-SIGNAL r1, r2       : std_logic_vector(l-1 DOWNTO 0);
-SIGNAL s          : std_logic_vector(l DOWNTO 0);
 
 BEGIN
     I1: bin_adder  PORT MAP (r1, r2, s);
