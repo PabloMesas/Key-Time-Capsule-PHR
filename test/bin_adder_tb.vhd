@@ -2,7 +2,7 @@
 -- Company: KTC Team
 -- 
 -- Design Name: 
--- Module Name: test_bin_adder - Behavioral
+-- Module Name: bin_adder_tb - Behavioral
 -- Project Name: Key-Time-Capsule
 -- Description: 
 -- 
@@ -18,11 +18,11 @@ library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 
-ENTITY test_bin_adder IS
+ENTITY bin_adder_tb IS
     GENERIC (l: INTEGER:= 1024);
-END test_bin_adder;
+END bin_adder_tb;
 
-ARCHITECTURE test OF test_bin_adder IS
+ARCHITECTURE test OF bin_adder_tb IS
 -- Signal Declerations
 SIGNAL r1, r2       : std_logic_vector(l-1 DOWNTO 0);
 SIGNAL s            : std_logic_vector(l DOWNTO 0);

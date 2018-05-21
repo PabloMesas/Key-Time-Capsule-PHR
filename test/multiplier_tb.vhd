@@ -2,7 +2,7 @@
 -- Company: KTC Team
 -- 
 -- Design Name: 
--- Module Name: test_multiplier - Behavioral
+-- Module Name: multiplier_tb - Behavioral
 -- Project Name: Key-Time-Capsule
 -- Description: 
 -- 
@@ -18,11 +18,11 @@ library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 
-ENTITY test_multiplier IS
+ENTITY multiplier_tb IS
     GENERIC (l: NATURAL:= 1024);
-END test_multiplier;
+END multiplier_tb;
 
-ARCHITECTURE test OF test_multiplier IS
+ARCHITECTURE test OF multiplier_tb IS
 -- Signal Declerations
 SIGNAL r1, r2     : std_logic_vector(l-1 DOWNTO 0);
 SIGNAL s          : std_logic_vector(2*l-1 DOWNTO 0);
