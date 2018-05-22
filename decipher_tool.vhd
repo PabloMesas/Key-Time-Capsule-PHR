@@ -19,7 +19,7 @@ use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 
 ENTITY decipher_tool IS
-    GENERIC (l: inTEGER:= 1024);
+    GENERIC (l: integer:= 1024, lk: integer:= 256);
     PORT (
         CLK         : IN std_logic;
         RsRx        : IN std_logic;
@@ -29,7 +29,7 @@ ENTITY decipher_tool IS
         A           : IN std_logic_vector(l DOWNTO 0);
         N           : IN std_logic_vector(l DOWNTO 0);
         T           : IN std_logic_vector(l DOWNTO 0);
-        K           : OUT std_logic_vector(l DOWNTO 0));
+        K           : OUT std_logic_vector(lk DOWNTO 0));
 END decipher_tool;
 
 ARCHITECTURE Behavioral OF decipher_tool IS
