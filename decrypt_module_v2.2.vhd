@@ -37,7 +37,7 @@ SIGNAL rT	: std_logic_vector (L-1 DOWNTO 0);  -- N, T
 
 BEGIN
 
-  PROCESS(LOAD, CLK)
+  PROCESS
   VARIABLE result	: unsigned(L-1 DOWNTO 0);
   VARIABLE texp		: unsigned(L-1 DOWNTO 0);
   -- Double length because of the multiplication of result
@@ -47,6 +47,7 @@ BEGIN
   VARIABLE rdyCalc	: std_logic := '0';
     
   BEGIN
+    WAIT UNTIL rising_edge(CLK);
     IF (LOAD = '1') THEN
       rCK <= CK;
       rA <= A;
@@ -60,17 +61,14 @@ BEGIN
       -- Ready to start calculating
       rdyCalc := '1';
       F <= '0';
-    ELSIF (rdyCalc = '1') THEN
-      IF (rising_edge(CLK)) THEN 
-        IF (texp > 0) THEN
-          square := result * result;
-          square := square mod modul;
-          -- We only need lower L bits
-          result := square(L-1 DOWNTO 0);
-          texp := texp - 1;
-        END IF;
-      END IF;
-      IF (texp = 0) THEN
+    ELSIF (rdyCalc = '1') THEN 
+      IF (texp > 0) THEN
+        square := result * result;
+        square := square mod modul;
+        -- We only need lower L bits
+        result := square(L-1 DOWNTO 0);
+        texp := texp - 1;   
+      ELSIF (texp = 0) THEN
         -- Resolving the subtraction part
         result := unsigned(rCK) - result;
         -- We only need the lower 256 bits
