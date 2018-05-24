@@ -19,129 +19,98 @@ use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 
 ENTITY decipher_tool IS
-    GENERIC (l: integer:= 1024, lk: integer:= 256);
+    GENERIC (clks: integer:= 1042; lr: integer:= 1024; lk: integer:= 256);
     PORT (
         CLK         : IN std_logic;
         RsRx        : IN std_logic;
-        Tx          : IN std_logic;
-        RESET       : IN std_logic;
-        CK          : IN std_logic_vector(l DOWNTO 0);
-        A           : IN std_logic_vector(l DOWNTO 0);
-        N           : IN std_logic_vector(l DOWNTO 0);
-        T           : IN std_logic_vector(l DOWNTO 0);
-        K           : OUT std_logic_vector(lk DOWNTO 0));
+        Tx          : OUT std_logic);
 END decipher_tool;
 
 ARCHITECTURE Behavioral OF decipher_tool IS
 -- SIGNAL Declerations
-SIGNAL RESET        : std_logic;
-SIGNAL o_rx_dv      : std_logic;
-SIGNAL o_rx_byte    : std_logic_vector(7 DOWNTO 0);
-SIGNAL i_tx_dv      : std_logic;
-SIGNAL i_tx_byte    : std_logic_vector(7 DOWNTO 0);
-SIGNAL count        : std_logic_vector(16 DOWNTO 0) := (OTHERS => '0');
+SIGNAL RESET       : std_logic;
+SIGNAL r_TX_DV     : std_logic                    := '0';
+SIGNAL r_TX_BYTE   : std_logic_vector(7 downto 0) := (others => '0');
+SIGNAL w_TX_DONE   : std_logic;
+SIGNAL w_RX_DV     : std_logic;
+SIGNAL w_RX_BYTE   : std_logic_vector(7 downto 0);
+SIGNAL SIGE        : std_logic                   := '0';
 
 COMPONENT uart_tx IS
     GENERIC (
-      g_CLKS_PER_BIT : integer := 1042   -- Needs to be set correctly (9600)
-      );
+      g_CLKS_PER_BIT : integer := clks);   -- Needs to be set correctly (9600)
     PORT (
       i_clk       : IN  std_logic;
       i_tx_dv     : IN  std_logic;
       i_tx_byte   : IN  std_logic_vector(7 DOWNTO 0);
       o_tx_active : OUT std_logic;
       o_tx_serial : OUT std_logic;
-      o_tx_done   : OUT std_logic
-      );
+      o_tx_done   : OUT std_logic);
   END COMPONENT uart_tx;
  
   COMPONENT uart_rx IS
     GENERIC (
-      g_CLKS_PER_BIT : integer := 1042   -- Needs to be set correctly (9600)
-      );
+      g_CLKS_PER_BIT : integer := clks);   -- Needs to be set correctly (9600)
     PORT (
       i_clk       : IN  std_logic;
       i_rx_serial : IN  std_logic;
       o_rx_dv     : OUT std_logic;
-      o_rx_byte   : OUT std_logic_vector(7 DOWNTO 0)
-      );
+      o_rx_byte   : OUT std_logic_vector(7 DOWNTO 0));
   END COMPONENT uart_rx;
 
-    -- Low-level byte-write
-  PROCEDURE uart_write_byte (
-    i_data_IN       : IN  std_logic_vector(7 DOWNTO 0);
-    SIGNAL o_serial : OUT std_logic) IS
-  BEGIN
+  COMPONENT decrypt_module_v22 IS
+    GENERIC (L: natural:= lr; Y: natural:= lk);   
+    PORT (
+      CLK       : IN std_logic;
+      LOAD	    : IN std_logic;
+      CK, A, N	: IN std_logic_vector(L-1 DOWNTO 0);
+      T 		    : IN std_logic_vector(L-1 DOWNTO 0);
+      K		      : OUT std_logic_vector(Y-1 DOWNTO 0);
+      F		      : OUT std_logic);
+  END COMPONENT decrypt_module_v22;
  
-    -- send Start Bit
-    o_serial <= '0';
-    WAIT for c_BIT_PERIOD;
- 
-    -- send Data Byte
-    for ii IN 0 to 7 loop
-      o_serial <= i_data_IN(ii);
-      WAIT for c_BIT_PERIOD;
-    END loop;  -- ii
- 
-    -- send Stop Bit
-    o_serial <= '1';
-    WAIT for c_BIT_PERIOD;
-  END uart_write_byte;
- 
-  -- INstantiate UART transmitter
+BEGIN
+
+  -- Instantiate UART transmitter
   UART_TX_INST : uart_tx
-    GENERIC MAP (
-      g_CLKS_PER_BIT => c_CLKS_PER_BIT
-      )
+    GENERIC MAP (g_CLKS_PER_BIT => clks)
     PORT MAP (
       i_clk       => CLK,
       i_tx_dv     => r_TX_DV,
       i_tx_byte   => r_TX_BYTE,
       o_tx_active => OPEN,
-      o_tx_serial => w_TX_SERIAL,
-      o_tx_done   => w_TX_DONE
-      );
+      o_tx_serial => Tx,
+      o_tx_done   => w_TX_DONE);
  
-  -- INstantiate UART Receiver
+  -- Instantiate UART Receiver
   UART_RX_INST : uart_rx
-    GENERIC MAP (
-      g_CLKS_PER_BIT => c_CLKS_PER_BIT
-      )
+    GENERIC MAP (g_CLKS_PER_BIT => clks)
     PORT MAP (
       i_clk       => CLK,
-      i_rx_serial => r_RX_SERIAL,
+      i_rx_serial => RsRx,
       o_rx_dv     => w_RX_DV,
-      o_rx_byte   => w_RX_BYTE
-      );
+      o_rx_byte   => w_RX_BYTE);
  
    
-  PROCESS IS -- MANEJANDO CHICHA
+  PROCESS (CLK)
   BEGIN
- 
-    -- Tell the UART to send a command.
-    WAIT UNTIL rising_edge(CLK);
-    WAIT UNTIL rising_edge(CLK);
-    r_TX_DV   <= '1';
-    r_TX_BYTE <= X"AB";
-    WAIT UNTIL rising_edge(CLK);
-    r_TX_DV   <= '0';
+    IF rising_edge(CLK) THEN
+      IF r_TX_DV = '1' THEN
+        r_TX_DV   <= '0';
+        SIGE <= '1';
+      END IF;
+      IF w_RX_DV = '1' AND SIGE = '0' THEN
+        r_TX_DV   <= '1';
+        r_TX_BYTE <= w_RX_BYTE;
+      END IF;
+    END IF;
+     
+  END PROCESS;
+  
+  PROCESS
+  BEGIN
     WAIT UNTIL w_TX_DONE = '1';
- 
-     
-    -- send a command to the UART
-    WAIT UNTIL rising_edge(CLK);
-    uart_write_byte(X"3F", r_RX_SERIAL);
-    WAIT UNTIL rising_edge(CLK);
- 
-    -- Check that the correct command was received
-    if w_RX_BYTE = X"3F" THEN
-      rePORT "Test Passed - Correct Byte Received" severity NOTe;
-    else
-      rePORT "Test Failed - INcorrect Byte Received" severity NOTe;
-    END if;
- 
-    assert false rePORT "Tests Complete" severity failure;
-     
+    SIGE <= '0';
   END PROCESS;
 
 END Behavioral;
