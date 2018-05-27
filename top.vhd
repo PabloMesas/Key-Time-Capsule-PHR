@@ -27,7 +27,7 @@ use IEEE.STD_LOGIC_1164.ALL;
 --use UNISIM.VComponents.all;
 
 ENTITY top IS
-    GENERIC (lb: natural:= 64; lr: natural:= 32; lk: natural:= 8; d_width: natural:= 8; clk_freq: integer:= 100_000_000);
+    GENERIC (lb: natural:= 32; lr: natural:= 32; lk: natural:= 8; d_width: natural:= 8; clk_freq: integer:= 100_000_000);
     PORT (
         CLK         : IN std_logic;
         led         : OUT std_logic_vector(6 DOWNTO 0);
@@ -39,12 +39,12 @@ ENTITY top IS
 END top;
 
 ARCHITECTURE Behavioral OF top IS
-TYPE cipher_machine     IS (r_CK, r_A, r_N, r_T, ld_data, wait_F, t_K);
+TYPE cipher_machine     IS (r_CK, p_CK, t_CK, t_K);
 -- SIGNAL Declerations
 SIGNAL tiuring_state    : cipher_machine                            := r_CK             ;
 SIGNAL tiuring_stNext   : cipher_machine                            := r_CK             ;
-SIGNAL tx_state         : natural           RANGE 0 TO 5            := 0                ;
-SIGNAL tx_stNext        : natural           RANGE 0 TO 5            := 0                ;
+SIGNAL tx_state         : natural           RANGE 0 TO 4            := 0                ;
+SIGNAL tx_stNext        : natural           RANGE 0 TO 4            := 0                ;
 SIGNAL RST              : std_logic                                 := '1'              ;
 
 SIGNAL led_stNext       : std_logic_vector  (6 DOWNTO 0)            := (OTHERS => '0')  ;
@@ -63,6 +63,8 @@ SIGNAL Rx_BUF           : std_logic_vector  (lb-1 DOWNTO 0)         := (OTHERS =
 SIGNAL Rx_INDEX         : natural           RANGE 0 TO lb           := 0                ;
 SIGNAL Rx_IndexSub      : natural           RANGE 0 TO lb           := 0                ;
 SIGNAL Rx_IndexAdd      : natural           RANGE 0 TO lb           := 0                ;
+
+SIGNAL CK               : std_logic_vector  (lr-1 DOWNTO 0)         := (OTHERS => '0')  ;
 
 COMPONENT UART IS
   GENERIC(
@@ -109,86 +111,75 @@ utt: UART
         tx            => Tx
         );
       
-  Controller: PROCESS (tiuring_state, Rx_INDEX, Tx_INDEX, RX_BUF, TX_BUF, LD, F, K)
-    VARIABLE RxIndex          : natural RANGE 0 TO lb := 0;
-    VARIABLE TxIndex          : natural RANGE 0 TO lb := 0;
+  Controller: PROCESS (tiuring_state, Rx_INDEX, Tx_INDEX)
     VARIABLE led_state        : std_logic_vector (6 DOWNTO 0) := (OTHERS => '0');
     VARIABLE ledV_state       : std_logic_vector (2 DOWNTO 0) := (OTHERS => '0');
     BEGIN
-    RxIndex := Rx_INDEX;
-    TxIndex := Tx_INDEX;
+
     CASE tiuring_state IS
       WHEN r_CK =>
         led_state := (OTHERS => '0');
-        IF RxIndex >= lr THEN
-          CK <= Rx_BUF(RxIndex-1 DOWNTO RxIndex-lr);
-          RxIndex := RxIndex - lr;
+        IF Rx_INDEX >= lr THEN
+          CK <= Rx_BUF(Rx_INDEX-1 DOWNTO 0);
+          Rx_IndexSub <= Rx_INDEX - lr;
           led_state(0) := '1';
-          tiuring_stNext <= r_A;
+          tiuring_stNext <= p_CK;
         END IF;
-      WHEN r_A =>
-        
-      WHEN wait_F =>
-        led_state(5) := '1';
-        Tx_BUF <= Tx_BUF(lb-lk-1 DOWNTO 0) & "01110011";
+      WHEN p_CK =>
+        Tx_BUF <= CK;
+        tiuring_stNext <= t_CK;
+      WHEN t_CK =>
+        Tx_IndexAdd <= lr;
         tiuring_stNext <= t_K;
       WHEN t_K =>
-        IF RxIndex = 0 THEN
-          IF TxIndex < lb THEN
-            TxIndex := TxIndex + lr;
-          END IF;
+        IF Tx_INDEX = 0 THEN
+          Tx_BUF <= Tx_BUF(lb-lk-1 DOWNTO 0) & "01110011";
+          Tx_IndexAdd <= lk;
           tiuring_stNext <= r_CK;
         END IF;
     END CASE;
       ledV <= ledV_state;
       led_stNext <= led_state;
-      Rx_IndexSub <= RxIndex;
-      Tx_IndexAdd <= TxIndex;
     END PROCESS;
       
       
       Reciever: PROCESS (Rx_BUSY, DATA_OUT)
-      VARIABLE index        : natural RANGE 0 TO lb := 0;
       BEGIN
-      index := Rx_INDEX;
       IF falling_edge(Rx_BUSY) THEN
         Rx_BUF <= Rx_BUF (lb-1-d_width DOWNTO 0) & DATA_OUT;
-        IF index < lb THEN
-          index := index + d_width;
+        IF Rx_INDEX < lb THEN
+          Rx_IndexAdd <= Rx_INDEX + d_width;
         END IF;
       END IF;
-      Rx_IndexAdd <= index;
       END PROCESS;
       
       Transmitter: PROCESS (tx_state, Tx_BUSY, Tx_INDEX)
-      VARIABLE index        : natural RANGE 0 TO lr := 0;
       BEGIN
-      index := Tx_INDEX;
+
       CASE tx_state IS
         WHEN 0 =>
           IF Tx_BUSY = '0' AND Tx_INDEX > 0 THEN
             DATA_IN <= Tx_BUF (Tx_INDEX-1 DOWNTO Tx_INDEX-d_width);
             tx_stNext <= 1;
           END IF;
-        WHEN 1 TO 2 =>
+        WHEN 1 =>
           DATA_SEND <= '1';
-          tx_stNext <= + tx_stNext;
-        WHEN 3 =>
+          tx_stNext <= 2;
+        WHEN 2 =>
           DATA_SEND <= '0';
-          tx_stNext <= 4;
-        WHEN 4 =>
+          tx_stNext <= 3;
+        WHEN 3 =>
           IF Tx_BUSY = '1' THEN
-            tx_stNext <= 5;
+            tx_stNext <= 4;
           END IF;
-        WHEN 5 =>
+        WHEN 4 =>
           IF Tx_BUSY = '0' THEN
-            IF index > 0 THEN
-              index := index - d_width;
+            IF Tx_INDEX > 0 THEN
+              Tx_IndexSub <= Tx_INDEX - d_width;
             END IF;
             tx_stNext <= 0;
           END IF;
       END CASE;
-      Tx_IndexSub <= index;
       END PROCESS;
       
  registerC: PROCESS(RST, CLK)
