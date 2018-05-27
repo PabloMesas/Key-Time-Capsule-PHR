@@ -1,138 +1,157 @@
-----------------------------------------------------------------------
--- File Downloaded from http://www.nandland.com
-----------------------------------------------------------------------
-library ieee;
-use ieee.std_logic_1164.ALL;
-use ieee.numeric_std.all;
- 
-entity uart_tb is
-end uart_tb;
- 
-architecture behave of uart_tb is
- 
-  component uart_tx is
-    generic (
-      g_CLKS_PER_BIT : integer := 115   -- Needs to be set correctly
-      );
-    port (
-      i_clk       : in  std_logic;
-      i_tx_dv     : in  std_logic;
-      i_tx_byte   : in  std_logic_vector(7 downto 0);
-      o_tx_active : out std_logic;
-      o_tx_serial : out std_logic;
-      o_tx_done   : out std_logic
-      );
-  end component uart_tx;
- 
-  component uart_rx is
-    generic (
-      g_CLKS_PER_BIT : integer := 115   -- Needs to be set correctly
-      );
-    port (
-      i_clk       : in  std_logic;
-      i_rx_serial : in  std_logic;
-      o_rx_dv     : out std_logic;
-      o_rx_byte   : out std_logic_vector(7 downto 0)
-      );
-  end component uart_rx;
- 
-   
-  -- Test Bench uses a 10 MHz Clock
-  -- Want to interface to 115200 baud UART
-  -- 10000000 / 115200 = 87 Clocks Per Bit.
-  constant c_CLKS_PER_BIT : integer := 87;
- 
-  constant c_BIT_PERIOD : time := 8680 ns;
-   
-  signal r_CLOCK     : std_logic                    := '0';
-  signal r_TX_DV     : std_logic                    := '0';
-  signal r_TX_BYTE   : std_logic_vector(7 downto 0) := (others => '0');
-  signal w_TX_SERIAL : std_logic;
-  signal w_TX_DONE   : std_logic;
-  signal w_RX_DV     : std_logic;
-  signal w_RX_BYTE   : std_logic_vector(7 downto 0);
-  signal r_RX_SERIAL : std_logic := '1';
- 
-   
-  -- Low-level byte-write
-  procedure UART_WRITE_BYTE (
-    i_data_in       : in  std_logic_vector(7 downto 0);
-    signal o_serial : out std_logic) is
-  begin
- 
-    -- Send Start Bit
-    o_serial <= '0';
-    wait for c_BIT_PERIOD;
- 
-    -- Send Data Byte
-    for ii in 0 to 7 loop
-      o_serial <= i_data_in(ii);
-      wait for c_BIT_PERIOD;
-    end loop;  -- ii
- 
-    -- Send Stop Bit
-    o_serial <= '1';
-    wait for c_BIT_PERIOD;
-  end UART_WRITE_BYTE;
- 
-   
+--------------------------------------------------------------------------------
+-- PROJECT: SIMPLE UART FOR FPGA
+--------------------------------------------------------------------------------
+-- MODULE:  TESTBANCH OF UART TOP MODULE
+-- AUTHORS: Jakub Cabal <jakubcabal@gmail.com>
+-- LICENSE: The MIT License (MIT), please read LICENSE file
+-- WEBSITE: https://github.com/jakubcabal/uart_for_fpga
+--------------------------------------------------------------------------------
+
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+
+entity UART_TB is
+end UART_TB;
+
+architecture FULL of UART_TB is
+
+	signal CLK           : std_logic := '0';
+	signal RST           : std_logic := '1';
+	signal tx_uart       : std_logic;
+	signal rx_uart       : std_logic := '1';
+	signal data_vld      : std_logic;
+	signal data_out      : std_logic_vector(7 downto 0);
+	signal frame_error   : std_logic;
+	signal data_send     : std_logic;
+	signal busy          : std_logic;
+	signal data_in       : std_logic_vector(7 downto 0);
+
+    constant clk_period  : time := 10 ns;
+	constant uart_period : time := 104.16 ns;
+	constant data_value  : std_logic_vector(7 downto 0) := "10100111";
+	constant data_value2 : std_logic_vector(7 downto 0) := "00110110";
+	
+	COMPONENT UART IS
+          GENERIC(
+              clk_freq         :    INTEGER        := 100_000_000;    --frequency of system clock in Hertz
+              baud_rate         :   INTEGER        := 9600;        --data link baud rate in bits/second
+              os_rate             : INTEGER        := 16;            --oversampling rate to find center of receive bits (in samples per baud period)
+              d_width             : INTEGER        := 8;             --data bus width
+              parity             :  INTEGER        := 0;            --0 for no parity, 1 for parity
+              parity_eo         :   STD_LOGIC    := '0');        --'0' for even, '1' for odd parity
+          PORT(
+              clk        :    IN        STD_LOGIC;                                        --system clock
+              reset_n    :    IN        STD_LOGIC;                                       --ascynchronous reset
+              tx_ena        :    IN        STD_LOGIC;                                       --initiate transmission
+              tx_data       :    IN        STD_LOGIC_VECTOR(d_width-1 DOWNTO 0);  --data to transmit
+              rx            :    IN        STD_LOGIC;                                        --receive pin
+              rx_busy    :    OUT    STD_LOGIC;                                        --data reception in progress
+              rx_error    :    OUT    STD_LOGIC;                                        --start, parity, or stop bit error detected
+              rx_data    :    OUT    STD_LOGIC_VECTOR(d_width-1 DOWNTO 0);    --data received
+              tx_busy    :    OUT    STD_LOGIC;                                      --transmission in progress
+              tx            :    OUT    STD_LOGIC);                                        --transmit pin
+      END COMPONENT UART;
+
 begin
- 
-  -- Instantiate UART transmitter
-  UART_TX_INST : uart_tx
-    generic map (
-      g_CLKS_PER_BIT => c_CLKS_PER_BIT
-      )
-    port map (
-      i_clk       => r_CLOCK,
-      i_tx_dv     => r_TX_DV,
-      i_tx_byte   => r_TX_BYTE,
-      o_tx_active => open,
-      o_tx_serial => w_TX_SERIAL,
-      o_tx_done   => w_TX_DONE
-      );
- 
-  -- Instantiate UART Receiver
-  UART_RX_INST : uart_rx
-    generic map (
-      g_CLKS_PER_BIT => c_CLKS_PER_BIT
-      )
-    port map (
-      i_clk       => r_CLOCK,
-      i_rx_serial => r_RX_SERIAL,
-      o_rx_dv     => w_RX_DV,
-      o_rx_byte   => w_RX_BYTE
-      );
- 
-  r_CLOCK <= not r_CLOCK after 50 ns;
-   
-  process is
-  begin
- 
-    -- Tell the UART to send a command.
-    wait until rising_edge(r_CLOCK);
-    wait until rising_edge(r_CLOCK);
-    r_TX_DV   <= '1';
-    r_TX_BYTE <= X"AB";
-    wait until rising_edge(r_CLOCK);
-    r_TX_DV   <= '0';
-    wait until w_TX_DONE = '1';
- 
-     
-    -- Send a command to the UART
-    wait until rising_edge(r_CLOCK);
-    UART_WRITE_BYTE(X"3F", r_RX_SERIAL);
-    wait until rising_edge(r_CLOCK);
- 
-    -- Check that the correct command was received
-    if w_RX_BYTE = X"3F" then
-      report "Test Passed - Correct Byte Received" severity note;
-    else
-      report "Test Failed - Incorrect Byte Received" severity note;
-    end if;
- 
-    assert false report "Tests Complete" severity failure;
-     
-  end process;
-   
-end behave;
+
+	utt: UART
+    GENERIC MAP(
+            clk_freq      => 100_000_000,
+            baud_rate     => 9600,
+            os_rate       => 16,
+            d_width       => 8,
+            parity        => 0,
+            parity_eo     => '0'
+            )
+        PORT MAP(
+            clk           => CLK,
+            reset_n       => RST,
+            tx_ena        => DATA_SEND,
+            tx_data       => DATA_IN,
+            rx            => rx_uart,
+            rx_busy       => data_vld,
+            rx_error      => OPEN,
+            rx_data       => DATA_OUT,
+            tx_busy       => busy,
+            tx            => tx_uart
+            );
+
+	clk_process : process
+	begin
+		CLK <= '0';
+		wait for clk_period/2;
+		CLK <= '1';
+		wait for clk_period/2;
+	end process;
+
+	test_rx_uart : process
+	begin
+		rx_uart <= '1';
+		RST <= '0';
+		wait for 100 ns;
+    	RST <= '1';
+
+		wait until rising_edge(CLK);
+
+		rx_uart <= '0'; -- start bit
+		wait for uart_period;
+
+		for i in 0 to (data_value'LENGTH-1) loop
+			rx_uart <= data_value(i); -- data bits
+			wait for uart_period;
+		end loop;
+
+		rx_uart <= '1'; -- stop bit
+		wait for uart_period;
+
+		rx_uart <= '0'; -- start bit
+		wait for uart_period;
+
+		for i in 0 to (data_value2'LENGTH-1) loop
+			rx_uart <= data_value2(i); -- data bits
+			wait for uart_period;
+		end loop;
+
+		rx_uart <= '1'; -- stop bit
+		wait for uart_period;
+
+		wait;
+
+	end process;
+
+	test_tx_uart : process
+	begin
+		data_send <= '0';
+		RST <= '0';
+		wait for 100 ns;
+      	RST <= '1';
+
+		wait until rising_edge(CLK);
+
+		data_send <= '1';
+		data_in <= data_value;
+
+		wait until rising_edge(CLK);
+
+		data_send <= '0';
+
+		wait until rising_edge(CLK);
+
+		wait for 80 us;
+		wait until rising_edge(CLK);
+
+		data_send <= '1';
+		data_in <= data_value2;
+
+		wait until rising_edge(CLK);
+
+		data_send <= '0';
+
+		wait until rising_edge(CLK);
+
+		wait;
+
+	end process;
+
+end FULL;
