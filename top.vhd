@@ -30,24 +30,19 @@ ENTITY top IS
     GENERIC (lb: natural:= 32; lr: natural:= 32; lk: natural:= 8; d_width: natural:= 8; clk_freq: integer:= 100_000_000);
     PORT (
         CLK         : IN std_logic;
-        led         : OUT std_logic_vector(6 DOWNTO 0);
-        ledV         : OUT std_logic_vector(2 DOWNTO 0);
-        ledRST      : OUT std_logic;
+        ledRST      : OUT std_logic := '1';
         sw          : IN std_logic;
         RsRx        : IN std_logic;
         Tx          : OUT std_logic);
 END top;
 
 ARCHITECTURE Behavioral OF top IS
-TYPE cipher_machine     IS (r_CK, p_CK, t_CK, t_K);
+TYPE cipher_machine     IS (r_CK, p_CK, t_CK);
 -- SIGNAL Declerations
 SIGNAL tiuring_state    : cipher_machine                            := r_CK             ;
-SIGNAL tiuring_stNext   : cipher_machine                            := r_CK             ;
 SIGNAL tx_state         : natural           RANGE 0 TO 4            := 0                ;
-SIGNAL tx_stNext        : natural           RANGE 0 TO 4            := 0                ;
+SIGNAL rx_state         : natural           RANGE 0 TO 1            := 0                ;
 SIGNAL RST              : std_logic                                 := '1'              ;
-
-SIGNAL led_stNext       : std_logic_vector  (6 DOWNTO 0)            := (OTHERS => '0')  ;
 
 SIGNAL DATA_SEND        : std_logic                                 := '0'              ;
 SIGNAL Tx_BUSY          : std_logic                                                     ;
@@ -57,6 +52,7 @@ SIGNAL Tx_INDEX         : natural           RANGE 0 TO lb           := 0        
 SIGNAL Tx_IndexSub      : natural           RANGE 0 TO lb           := 0                ;
 SIGNAL Tx_IndexAdd      : natural           RANGE 0 TO lb           := 0                ;
 
+SIGNAL Rx_ERROR         : std_logic                                                     ;
 SIGNAL Rx_BUSY          : std_logic                                                     ;
 SIGNAL DATA_OUT         : std_logic_vector  (d_width-1 DOWNTO 0)                        ;
 SIGNAL Rx_BUF           : std_logic_vector  (lb-1 DOWNTO 0)         := (OTHERS => '0')  ;
@@ -105,91 +101,103 @@ utt: UART
         tx_data       => DATA_IN,
         rx            => RsRx,
         Rx_BUSY       => Rx_BUSY,
-        rx_error      => OPEN,
+        rx_error      => Rx_ERROR,
         rx_data       => DATA_OUT,
         Tx_BUSY       => Tx_BUSY,
         tx            => Tx
         );
       
-  Controller: PROCESS (tiuring_state, Rx_INDEX, Tx_INDEX)
-    VARIABLE led_state        : std_logic_vector (6 DOWNTO 0) := (OTHERS => '0');
-    VARIABLE ledV_state       : std_logic_vector (2 DOWNTO 0) := (OTHERS => '0');
+  Controller: PROCESS (RST, CLK)
     BEGIN
-
-    CASE tiuring_state IS
-      WHEN r_CK =>
-        led_state := (OTHERS => '0');
-        IF Rx_INDEX >= lr THEN
-          CK <= Rx_BUF(Rx_INDEX-1 DOWNTO 0);
-          Rx_IndexSub <= Rx_INDEX - lr;
-          led_state(0) := '1';
-          tiuring_stNext <= p_CK;
-        END IF;
-      WHEN p_CK =>
-        Tx_BUF <= CK;
-        tiuring_stNext <= t_CK;
-      WHEN t_CK =>
-        Tx_IndexAdd <= lr;
-        tiuring_stNext <= t_K;
-      WHEN t_K =>
-        IF Tx_INDEX = 0 THEN
-          Tx_BUF <= Tx_BUF(lb-lk-1 DOWNTO 0) & "01110011";
-          Tx_IndexAdd <= lk;
-          tiuring_stNext <= r_CK;
-        END IF;
-    END CASE;
-      ledV <= ledV_state;
-      led_stNext <= led_state;
+    Rx_IndexSub <= Rx_INDEX;
+    Tx_IndexAdd <= Tx_INDEX;
+    IF RST = '0' THEN
+      tiuring_state <= r_CK;
+    ELSIF rising_edge(CLK) THEN
+      CASE tiuring_state IS
+        WHEN r_CK =>
+          IF Rx_INDEX >= lr THEN
+            CK <= Rx_BUF(Rx_INDEX-1 DOWNTO 0);
+            Rx_IndexSub <= Rx_INDEX - lr;
+            tiuring_state <= p_CK;
+          END IF;
+        WHEN p_CK =>
+          Tx_BUF <= CK;
+          tiuring_state <= t_CK;
+        WHEN t_CK =>
+          Tx_IndexAdd <= Tx_INDEX + lr;
+          tiuring_state <= r_CK;
+      END CASE;
+    END IF;
     END PROCESS;
       
       
-      Reciever: PROCESS (Rx_BUSY, DATA_OUT)
+      Reciever: PROCESS (RST, CLK)
       BEGIN
-      IF falling_edge(Rx_BUSY) THEN
-        Rx_BUF <= Rx_BUF (lb-1-d_width DOWNTO 0) & DATA_OUT;
-        IF Rx_INDEX < lb THEN
-          Rx_IndexAdd <= Rx_INDEX + d_width;
-        END IF;
+      Rx_IndexAdd <= Rx_INDEX;
+      
+      IF RST = '0' THEN
+        Rx_BUF <= (OTHERS => '0');
+      ELSIF rising_edge(CLK) THEN
+        CASE rx_state IS
+          WHEN 0 =>
+            IF Rx_BUSY = '1' THEN
+              rx_state <= 1;
+            END IF;
+          WHEN 1 =>
+            IF Rx_BUSY = '0' THEN
+              IF Rx_ERROR = '0' THEN
+                Rx_BUF <= Rx_BUF (lb-1-d_width DOWNTO 0) & DATA_OUT;
+                IF Rx_INDEX < lb THEN
+                  Rx_IndexAdd <= Rx_INDEX + d_width;
+                END IF;
+              END IF;
+              rx_state <= 0;
+            END IF;
+        END CASE;
       END IF;
       END PROCESS;
       
-      Transmitter: PROCESS (tx_state, Tx_BUSY, Tx_INDEX)
+      Transmitter: PROCESS (RST, CLK)
       BEGIN
-
-      CASE tx_state IS
-        WHEN 0 =>
-          IF Tx_BUSY = '0' AND Tx_INDEX > 0 THEN
-            DATA_IN <= Tx_BUF (Tx_INDEX-1 DOWNTO Tx_INDEX-d_width);
-            tx_stNext <= 1;
-          END IF;
-        WHEN 1 =>
-          DATA_SEND <= '1';
-          tx_stNext <= 2;
-        WHEN 2 =>
-          DATA_SEND <= '0';
-          tx_stNext <= 3;
-        WHEN 3 =>
-          IF Tx_BUSY = '1' THEN
-            tx_stNext <= 4;
-          END IF;
-        WHEN 4 =>
-          IF Tx_BUSY = '0' THEN
-            IF Tx_INDEX > 0 THEN
-              Tx_IndexSub <= Tx_INDEX - d_width;
+      Tx_IndexSub <= Tx_INDEX;
+      
+      IF RST = '0' THEN
+        tx_state <= 0;
+      ELSIF rising_edge(CLK) THEN
+        CASE tx_state IS
+          WHEN 0 =>
+            IF Tx_BUSY = '0' AND Tx_INDEX > 0 THEN
+              DATA_SEND <= '1';
+              tx_state <= 1;
             END IF;
-            tx_stNext <= 0;
-          END IF;
-      END CASE;
+          WHEN 1 =>
+            DATA_IN <= Tx_BUF (Tx_INDEX-1 DOWNTO Tx_INDEX-d_width);
+            tx_state <= 2;
+          WHEN 2 =>
+            DATA_SEND <= '0';
+            tx_state <= 3;
+          WHEN 3 =>
+            IF Tx_BUSY = '1' THEN
+              tx_state <= 4;
+            END IF;
+          WHEN 4 =>
+            IF Tx_BUSY = '0' THEN
+              IF Tx_INDEX > 0 THEN
+                Tx_IndexSub <= Tx_INDEX - d_width;
+              END IF;
+              tx_state <= 0;
+            END IF;
+        END CASE;
+      END IF;
       END PROCESS;
       
  registerC: PROCESS(RST, CLK)
  BEGIN
    IF RST = '0' THEN
-     tiuring_state <= r_CK;
-     tx_state <= 0;
+     Rx_INDEX <= 0;
+     Tx_INDEX <= 0;
    ELSIF rising_edge(CLK) THEN
-     led <= led_stNext;
-      
      IF Rx_INDEX > Rx_IndexSub THEN
        IF Rx_INDEX < Rx_IndexAdd THEN
          Rx_INDEX <= Rx_IndexAdd + Rx_IndexSub - RX_INDEX;
@@ -209,20 +217,17 @@ utt: UART
      ELSE
        Tx_INDEX <= Tx_IndexAdd;
      END IF;
-          
-     tiuring_state <= tiuring_stNext;
-     tx_state <= tx_stNext;
    END IF;
    END PROCESS;
 
   resete: PROCESS (sw)
-  VARIABLE reset_PrevState      : std_logic     := '0'; 
+  VARIABLE reset_PrevState      : std_logic     := '1'; 
   BEGIN
   IF reset_PrevState /= sw THEN
     reset_PrevState := sw;
     ledRST <= sw;
+    RST <= reset_PrevState;
   END IF;
-  RST <= reset_PrevState;
   END PROCESS;
 
 END Behavioral;
