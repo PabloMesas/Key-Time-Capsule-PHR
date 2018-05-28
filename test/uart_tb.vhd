@@ -18,17 +18,17 @@ architecture FULL of UART_TB is
 
 	signal CLK           : std_logic := '0';
 	signal RST           : std_logic := '1';
-	signal tx_uart       : std_logic;
+	signal tx            : std_logic;
 	signal rx_uart       : std_logic := '1';
-	signal data_vld      : std_logic;
+	signal rx_busy       : std_logic;
 	signal data_out      : std_logic_vector(7 downto 0);
 	signal frame_error   : std_logic;
 	signal data_send     : std_logic;
-	signal busy          : std_logic;
+	signal tx_busy          : std_logic;
 	signal data_in       : std_logic_vector(7 downto 0);
 
     constant clk_period  : time := 10 ns;
-	constant uart_period : time := 104.16 ns;
+	constant uart_period : time := 104.167 us;
 	constant data_value  : std_logic_vector(7 downto 0) := "10100111";
 	constant data_value2 : std_logic_vector(7 downto 0) := "00110110";
 	
@@ -70,11 +70,11 @@ begin
             tx_ena        => DATA_SEND,
             tx_data       => DATA_IN,
             rx            => rx_uart,
-            rx_busy       => data_vld,
+            rx_busy       => rx_busy,
             rx_error      => OPEN,
             rx_data       => DATA_OUT,
-            tx_busy       => busy,
-            tx            => tx_uart
+            tx_busy       => tx_busy,
+            tx            => tx
             );
 
 	clk_process : process
@@ -120,7 +120,7 @@ begin
 
 	end process;
 
-	test_tx_uart : process
+	test_tx : process
 	begin
 		data_send <= '0';
 		RST <= '0';
@@ -138,7 +138,8 @@ begin
 
 		wait until rising_edge(CLK);
 
-		wait for 80 us;
+		wait until falling_edge(tx_busy);
+		wait for 100 us;
 		wait until rising_edge(CLK);
 
 		data_send <= '1';

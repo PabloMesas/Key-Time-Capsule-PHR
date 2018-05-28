@@ -29,7 +29,7 @@ ENTITY uart IS
 		baud_rate	     :	INTEGER		:= 9600;		--data link baud rate in bits/second
 		os_rate		     :	INTEGER		:= 16;			--oversampling rate to find center of receive bits (in samples per baud period)
 		d_width		     :	INTEGER		:= 8; 			--data bus width
-		parity		     :	INTEGER		:= 1;		    --0 for no parity, 1 for parity
+		parity		     :	INTEGER		:= 0;		    --0 for no parity, 1 for parity
 		parity_eo	     :	STD_LOGIC	:= '0');	    --'0' for even, '1' for odd parity
 	PORT(
 		clk		:	IN		STD_LOGIC;										--system clock
@@ -55,12 +55,12 @@ ARCHITECTURE logic OF uart IS
 	SIGNAL	rx_parity			:	STD_LOGIC_VECTOR(d_width DOWNTO 0);		--calculation of receive parity
 	SIGNAL	tx_parity			:	STD_LOGIC_VECTOR(d_width DOWNTO 0);  	--calculation of transmit parity
 	SIGNAL	rx_buffer			:	STD_LOGIC_VECTOR(parity+d_width DOWNTO 0) := (OTHERS => '0');  	--values received
-	SIGNAL	tx_buffer			:	STD_LOGIC_VECTOR(parity+d_width+1 DOWNTO 0) := (OTHERS => '1');	--values to be transmitted
+	SIGNAL	tx_buffer			:	STD_LOGIC_VECTOR(parity+d_width+2 DOWNTO 0) := (OTHERS => '1');	--values to be transmitted
 BEGIN
 
 	--generate clock enable pulses at the baud rate and the oversampling rate
 	PROCESS(reset_n, clk)
-		VARIABLE count_baud	:	INTEGER RANGE 0 TO clk_freq/baud_rate-1 := 0;			--counter to determine baud rate period
+		VARIABLE count_baud	:	INTEGER RANGE 0 TO 10_417-1 := 0;			--counter to determine baud rate period
 		VARIABLE count_os		:	INTEGER RANGE 0 TO clk_freq/baud_rate/os_rate-1 := 0;	--counter to determine oversampling period
 	BEGIN
 		IF(reset_n = '0') THEN											--asynchronous reset asserted
@@ -90,7 +90,7 @@ BEGIN
 	END PROCESS;
 
 	--receive state machine
-	PROCESS(reset_n, os_pulse, clk)
+	PROCESS(reset_n, clk)
 			VARIABLE rx_count	:	INTEGER RANGE 0 TO parity+d_width+2 := 0;		--count the bits received
 			VARIABLE os_count	:	INTEGER RANGE 0 TO os_rate-1 := 0;				--count the oversampling rate pulses
 	BEGIN
@@ -162,7 +162,7 @@ BEGIN
 					IF(tx_ena = '1') THEN														--new transaction latched in
 						tx_buffer(d_width+1 DOWNTO 0) <=  tx_data & '0' & '1';			--latch in data for transmission and start/stop bits
 						IF(parity = 1) THEN															--if parity is used
-							tx_buffer(parity+d_width+1) <= tx_parity(d_width);					--latch in parity bit from parity logic
+							tx_buffer(parity+d_width) <= tx_parity(d_width);					--latch in parity bit from parity logic
 						END IF;
 						tx_busy <= '1';																--assert transmit busy flag
 						tx_count := 0;																	--clear transmit bit count
@@ -174,9 +174,9 @@ BEGIN
 				WHEN transmit =>																--transmit state
 					IF(baud_pulse = '1') THEN													--beginning of bit
 						tx_count := tx_count + 1;													--increment transmit bit counter
-						tx_buffer <= '1' & tx_buffer(parity+d_width+1 DOWNTO 1);			--shift transmit buffer to output next bit
+						tx_buffer <= '1' & tx_buffer(parity+d_width+2 DOWNTO 1);			--shift transmit buffer to output next bit
 					END IF;
-					IF(tx_count < parity+d_width+3) THEN									--not all bits transmitted
+					IF(tx_count < parity+d_width+2) THEN									--not all bits transmitted
 						tx_state <= transmit;														--remain in transmit state
 					ELSE																				--all bits transmitted
 						tx_state <= idle;																--return to idle state
