@@ -19,26 +19,81 @@ use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 
 ENTITY multiplier_tb IS
-    GENERIC (l: NATURAL:= 1024);
+    GENERIC (l: NATURAL:= 32);
 END multiplier_tb;
 
 ARCHITECTURE test OF multiplier_tb IS
 -- Signal Declerations
-SIGNAL r1, r2     : std_logic_vector(l-1 DOWNTO 0);
-SIGNAL s          : std_logic_vector(2*l-1 DOWNTO 0);
+SIGNAL CLK             : std_logic := '0';
+SIGNAL RST             : std_logic                                  := '1'              ;
+SIGNAL LD              : std_logic                                  := '0'              ;
+SIGNAL r1, r2          : std_logic_vector(l-1 DOWNTO 0)                                 ;
+SIGNAL s               : std_logic_vector(2*l-1 DOWNTO 0)                               ;
+SIGNAL F               : std_logic                                                      ;
 
-COMPONENT multiplier
+constant clk_period  : time := 10 ns;
+
+COMPONENT mult
     PORT (
-        MUL1, MUL2     : IN std_logic_vector(l-1 DOWNTO 0);
-        PRODUCT        : OUT std_logic_vector(2*l-1 DOWNTO 0));
+        CLK : IN std_logic;
+        RST             : IN std_logic;
+        LD              : IN std_logic;
+        MUL1, MUL2      : IN std_logic_vector(l-1 DOWNTO 0)                             ;
+        S               : OUT std_logic_vector(2*l-1 DOWNTO 0)                          ;
+        F               : OUT std_logic                             := '0'             );
 END COMPONENT;
 
 BEGIN
-    I1: multiplier  PORT MAP (r1, r2, s);
+    clk_process : process
+	begin
+		CLK <= '0';
+		wait for clk_period/2;
+		CLK <= '1';
+		wait for clk_period/2;
+	end process;
+
+    I1: mult  
+      PORT MAP (
+        CLK,
+        RST,
+        LD,
+        r1,
+        r2,
+        s,
+        F
+        );
     
-    r1 <= std_logic_vector(to_unsigned(5, l)) after 0 ns, 
-	    std_logic_vector(to_unsigned(7, l)) after 20 ns;
-    r2 <= std_logic_vector(to_unsigned(7, l)) after 0 ns,
-	    std_logic_vector(to_unsigned(11, l)) after 40 ns;
+    multi: PROCESS
+    BEGIN
+      RST <= '0';
+      wait for 20 ns;
+      RST <= '1';
+      
+      wait until rising_edge(CLK);
+      
+      r1 <= "00000000000000000000000000000101";
+      r2 <= "00000000000000000000000000000101";
+      
+      LD <= '1';
+      wait until rising_edge(CLK);
+      LD <= '0';
+      
+      wait until rising_edge(F);
+      wait until rising_edge(CLK);
+      
+      r1 <= "00000000000000000000001011111111";
+      r2 <= "00000000000000000000001011111111";
+        
+      LD <= '1';
+      wait until rising_edge(CLK);
+      LD <= '0';
+      
+      wait until rising_edge(F);
+      wait until rising_edge(CLK);
+      
+      wait;
+      
+    END PROCESS;
+	
 
 END test;

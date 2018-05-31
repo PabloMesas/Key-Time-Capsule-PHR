@@ -34,18 +34,14 @@ architecture FULL of top_tb is
 	signal tx            : std_logic;
 
     constant clk_period  : time := 10 ns;
-	constant uart_period : time := 104.167 us;
+	constant uart_period : time := 104.17 us;
 	constant data_length : natural := 8;
-	constant data_value  : std_logic_vector(31 downto 0) := "00000000000000000000000100111111";
-	constant data_value2 : std_logic_vector(7 downto 0) := "01110011";
+	constant data_ck     : std_logic_vector(31 downto 0) := "00000000000000000000000100111111";
+	constant data_a      : std_logic_vector(31 downto 0) := "00000000000000000000000000000011";
+	constant data_n      : std_logic_vector(31 downto 0) := "00000000000000000000001011111111";
+	constant data_t      : std_logic_vector(31 downto 0) := "00000000000000000000000000000101";
 	
 	COMPONENT top IS
-        GENERIC (
-            lb          : natural;
-            lr          : natural;
-            lk          : natural;
-            d_width     : natural;
-            clk_freq    : integer);
         PORT (
             CLK         : IN std_logic;
             ledRST      : OUT std_logic;
@@ -57,13 +53,6 @@ architecture FULL of top_tb is
 begin
 
 	top_mod: top
-      GENERIC MAP (
-        lb => 32,
-        lr => 32,
-        lk => 8,
-        d_width => 8,
-        clk_freq => 100_000_000
-        )
       PORT MAP (
         CLK => CLK,
         ledRST => ledRST,
@@ -92,13 +81,13 @@ begin
 		wait until rising_edge(CLK);
 
 
-		for i in 0 TO (data_value'LENGTH-1) loop
+		for i in 0 TO (data_ck'LENGTH-1) loop
 		    IF count = 0 THEN
 		      rx <= '0'; -- start bit
               wait for uart_period;
 		    END IF;
 		    
-			rx <= data_value(i); -- data bits
+			rx <= data_ck(i); -- data bits
 			wait for uart_period;
 			
 			IF count = 7 THEN
@@ -109,17 +98,69 @@ begin
               count := count + 1;
             END IF;
 		end loop;
+		
+		wait until rising_edge(CLK);
+		
+		for i in 0 TO (data_a'LENGTH-1) loop
+            IF count = 0 THEN
+              rx <= '0'; -- start bit
+              wait for uart_period;
+            END IF;
+            
+            rx <= data_a(i); -- data bits
+            wait for uart_period;
+            
+            IF count = 7 THEN
+              rx <= '1'; -- stop bit
+              wait for uart_period;
+              count := 0;
+            ELSE
+              count := count + 1;
+            END IF;
+        end loop;
+        
+        wait until rising_edge(CLK);
+        
+        for i in 0 TO (data_n'LENGTH-1) loop
+            IF count = 0 THEN
+              rx <= '0'; -- start bit
+              wait for uart_period;
+            END IF;
+            
+            rx <= data_n(i); -- data bits
+            wait for uart_period;
+            
+            IF count = 7 THEN
+              rx <= '1'; -- stop bit
+              wait for uart_period;
+              count := 0;
+            ELSE
+              count := count + 1;
+            END IF;
+        end loop;
+        
+        wait until rising_edge(CLK);
+        
+        for i in 0 TO (data_t'LENGTH-1) loop
+            IF count = 0 THEN
+              rx <= '0'; -- start bit
+              wait for uart_period;
+            END IF;
+            
+            rx <= data_t(i); -- data bits
+            wait for uart_period;
+            
+            IF count = 7 THEN
+              rx <= '1'; -- stop bit
+              wait for uart_period;
+              count := 0;
+            ELSE
+              count := count + 1;
+            END IF;
+        end loop;
 
 		rx <= '1'; -- stop bit
 		wait for uart_period;
-
-		rx <= '0'; -- start bit
-		wait for uart_period;
-
-		for i in 0 to (data_value2'LENGTH-1) loop
-			rx <= data_value2(i); -- data bits
-			wait for uart_period;
-		end loop;
 
 		rx <= '1'; -- stop bit
 		wait for uart_period;

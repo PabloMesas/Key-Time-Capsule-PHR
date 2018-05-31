@@ -16,26 +16,29 @@ USE IEEE.std_logic_1164.ALL;
 USE IEEE.NUMERIC_STD.ALL;
 
 ENTITY decrypt_module_v22 IS
-  GENERIC (L: natural:= 32; Y: natural:= 8);   
+  GENERIC (
+      L                 : natural:= 32;
+      Y                 : natural:= 8);   
   PORT (
-        CLK             : IN std_logic;
-        LD              : IN std_logic;
-        CK, A, N        : IN std_logic_vector(L-1 DOWNTO 0);
-        T               : IN std_logic_vector(L-1 DOWNTO 0);
-        K               : OUT std_logic_vector(Y-1 DOWNTO 0);
-	    F               : OUT std_logic);
+      CLK               : IN std_logic;
+      LOAD              : IN std_logic;
+      CK, A, N          : IN std_logic_vector (L-1 DOWNTO 0);
+      T                 : IN std_logic_vector (L-1 DOWNTO 0);
+      K                 : OUT std_logic_vector(Y-1 DOWNTO 0) := (OTHERS => '0');
+	  F                 : OUT std_logic := '0');
 END decrypt_module_v22;
 
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
 
 ARCHITECTURE Behavioral OF decrypt_module_v22 IS
-TYPE calculus_machine     IS (assign_d, calc1_d, calc2_d, calc3_d, find_k, t_k, nulo);
-SIGNAL calculus_state   : calculus_machine;
+TYPE calculus_machine   IS (assign_d, calc1_d, calc2_d, calc3_d, find_k, t_k, nulo)     ;
+-- SIGNAL Declerations
+SIGNAL calculus_state   : calculus_machine                          := nulo             ;
 
 BEGIN
 
-  PROCESS (LD, CLK)
+  PROCESS (LOAD, CLK)
   VARIABLE result	: unsigned(L-1 DOWNTO 0);
   VARIABLE texp		: unsigned(L-1 DOWNTO 0);
   -- Double length because of the multiplication of result
@@ -44,8 +47,8 @@ BEGIN
   VARIABLE modul	: unsigned(L*2-1 DOWNTO 0);
   VARIABLE ck_d     : std_logic_vector (L-1 DOWNTO 0);  -- Internal registers
   BEGIN
-    IF (LD = '1') THEN
-      -- LDing variables
+    IF (LOAD = '1') THEN
+      -- Loading variables
       ck_d := CK;
       result := unsigned(A);
       modul (L-1 DOWNTO 0) := unsigned(N);
@@ -54,7 +57,7 @@ BEGIN
       -- Setting all bits to 0
       modul := (OTHERS => '0');
       calculus_state <= assign_d;
-    ELSIF (rising_edge(CLK)) THEN
+    ELSIF rising_edge(CLK) THEN
       CASE calculus_state IS
         WHEN assign_d =>
           calculus_state <= assign_d;
@@ -79,14 +82,16 @@ BEGIN
           calculus_state <= t_k;
         WHEN t_k =>
           -- We only need the lower 256 bits
-          k <= std_logic_vector(result(Y-1 DOWNTO 0));
+          K <= std_logic_vector(result(Y-1 DOWNTO 0));
           -- Stop calculating
           F <= '1';
           calculus_state <= nulo;
         WHEN nulo =>
+          
       END CASE;
     END IF;        
   END PROCESS;
+  
 END Behavioral;
 
 --------------------------------------------------------------------------------

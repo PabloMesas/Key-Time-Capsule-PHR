@@ -27,22 +27,29 @@ use IEEE.STD_LOGIC_1164.ALL;
 --use UNISIM.VComponents.all;
 
 ENTITY top IS
-    GENERIC (lb: natural:= 32; lr: natural:= 32; lk: natural:= 8; d_width: natural:= 8; clk_freq: integer:= 100_000_000);
+    GENERIC (
+        lb              : natural:= 64;
+        lr              : natural:= 32;
+        lk              : natural:= 8;
+        d_width         : natural:= 8;
+        clk_freq        : integer:= 100_000_000);
     PORT (
-        CLK         : IN std_logic;
-        ledRST      : OUT std_logic := '1';
-        sw          : IN std_logic;
-        RsRx        : IN std_logic;
-        Tx          : OUT std_logic);
+        CLK             : IN std_logic;
+        ledRST          : OUT std_logic := '1';
+        sw              : IN std_logic;
+        RsRx            : IN std_logic;
+        Tx              : OUT std_logic);
 END top;
 
 ARCHITECTURE Behavioral OF top IS
-TYPE cipher_machine     IS (r_CK, p_CK, t_CK);
+TYPE cipher_machine     IS (r_CK, r_A, r_N, r_T, l_DATA, l_DATA1, w_K, t_K);
 -- SIGNAL Declerations
 SIGNAL tiuring_state    : cipher_machine                            := r_CK             ;
-SIGNAL tx_state         : natural           RANGE 0 TO 4            := 0                ;
+SIGNAL tx_state         : natural           RANGE 0 TO 2            := 0                ;
 SIGNAL rx_state         : natural           RANGE 0 TO 1            := 0                ;
 SIGNAL RST              : std_logic                                 := '1'              ;
+SIGNAL LOAD             : std_logic                                 := '0'              ;
+SIGNAL F                : std_logic                                 := '0'              ;
 
 SIGNAL DATA_SEND        : std_logic                                 := '0'              ;
 SIGNAL Tx_BUSY          : std_logic                                                     ;
@@ -61,6 +68,10 @@ SIGNAL Rx_IndexSub      : natural           RANGE 0 TO lb           := 0        
 SIGNAL Rx_IndexAdd      : natural           RANGE 0 TO lb           := 0                ;
 
 SIGNAL CK               : std_logic_vector  (lr-1 DOWNTO 0)         := (OTHERS => '0')  ;
+SIGNAL A                : std_logic_vector  (lr-1 DOWNTO 0)         := (OTHERS => '0')  ;
+SIGNAL N                : std_logic_vector  (lr-1 DOWNTO 0)         := (OTHERS => '0')  ;
+SIGNAL T                : std_logic_vector  (lr-1 DOWNTO 0)         := (OTHERS => '0')  ;
+SIGNAL K                : std_logic_vector  (lk-1 DOWNTO 0)         := (OTHERS => '0')  ;
 
 COMPONENT UART IS
   GENERIC(
@@ -82,6 +93,21 @@ COMPONENT UART IS
       Tx_BUSY       : OUT std_logic;                            --transmission in progress
       tx            : OUT std_logic);                           --transmit pin
 END COMPONENT UART;
+
+COMPONENT decrypt_module IS
+  GENERIC (
+      L             : natural:= lr;
+      Y             : natural:= lk);   
+  PORT (
+      CLK           : IN std_logic;
+      LOAD          : IN std_logic;
+      CK            : IN std_logic_vector(L-1 DOWNTO 0);
+      A             : IN std_logic_vector(L-1 DOWNTO 0);
+      N             : IN std_logic_vector(L-1 DOWNTO 0);
+      T             : IN std_logic_vector(L-1 DOWNTO 0);
+      K             : OUT std_logic_vector(Y-1 DOWNTO 0);
+      F             : OUT std_logic);
+END COMPONENT decrypt_module;
   
 BEGIN
 
@@ -106,39 +132,96 @@ utt: UART
         Tx_BUSY       => Tx_BUSY,
         tx            => Tx
         );
+
+decrypter: decrypt_module
+    GENERIC MAP(
+        L             => lr,
+        Y             => lk
+        )   
+    PORT MAP(
+        CLK           => CLK,
+        LOAD          => LOAD,
+        CK            => CK,
+        A             => A,
+        N             => N,
+        T             => T,
+        K             => K,
+        F             => F
+        );  
       
   Controller: PROCESS (RST, CLK)
-    BEGIN
-    Rx_IndexSub <= Rx_INDEX;
-    Tx_IndexAdd <= Tx_INDEX;
+  VARIABLE r_index      : NATURAL RANGE 0 to lb;
+  VARIABLE t_index      : NATURAL RANGE 0 to lb;
+  BEGIN
     IF RST = '0' THEN
+      Tx_BUF <= (OTHERS => '0');
       tiuring_state <= r_CK;
     ELSIF rising_edge(CLK) THEN
+      r_index := 0;
+      t_index := 0;
       CASE tiuring_state IS
         WHEN r_CK =>
           IF Rx_INDEX >= lr THEN
-            CK <= Rx_BUF(Rx_INDEX-1 DOWNTO 0);
-            Rx_IndexSub <= Rx_INDEX - lr;
-            tiuring_state <= p_CK;
+            CK <= Rx_BUF(lb-Rx_INDEX+lr-1 DOWNTO lb-Rx_INDEX);
+            IF Rx_INDEX >= lr THEN
+              r_index := lr;
+            END IF;
+            tiuring_state <= r_A;
           END IF;
-        WHEN p_CK =>
-          Tx_BUF <= CK;
-          tiuring_state <= t_CK;
-        WHEN t_CK =>
-          Tx_IndexAdd <= Tx_INDEX + lr;
+        WHEN r_A =>
+          IF Rx_INDEX >= lr THEN
+            A <= Rx_BUF(lb-Rx_INDEX+lr-1 DOWNTO lb-Rx_INDEX);
+            IF Rx_INDEX >= lr THEN
+              r_index := lr;
+            END IF;
+            tiuring_state <= r_N;
+          END IF;
+        WHEN r_N =>
+          IF Rx_INDEX >= lr THEN
+            N <= Rx_BUF(lb-Rx_INDEX+lr-1 DOWNTO lb-Rx_INDEX);
+            IF Rx_INDEX >= lr THEN
+              r_index := lr;
+            END IF;
+            tiuring_state <= r_T;
+          END IF;
+        WHEN r_T =>
+          IF Rx_INDEX >= lr THEN
+            T <= Rx_BUF(lb-Rx_INDEX+lr-1 DOWNTO lb-Rx_INDEX);
+            IF Rx_INDEX >= lr THEN
+              r_index := lr;
+            END IF;
+            tiuring_state <= l_DATA;
+          END IF;
+        WHEN l_DATA =>
+            LOAD <= '1';
+            tiuring_state <= l_DATA1;
+        WHEN l_DATA1 =>
+          LOAD <= '0';
+          tiuring_state <= w_K;
+        WHEN w_K =>
+          IF F = '1' THEN
+            Tx_BUF <= K & Tx_BUF (lb-1 DOWNTO lk);
+            tiuring_state <= t_K;
+          END IF;
+        WHEN t_K =>
+          IF Tx_INDEX < lb THEN
+            t_index := lk;
+          END IF;
           tiuring_state <= r_CK;
       END CASE;
     END IF;
-    END PROCESS;
+    Rx_IndexSub <= r_index;
+    Tx_IndexAdd <= t_index;
+  END PROCESS;
       
       
-      Reciever: PROCESS (RST, CLK)
+      Reciever: PROCESS (Rx_BUSY, RST, CLK)
+      VARIABLE index    : NATURAL RANGE 0 TO lb;
       BEGIN
-      Rx_IndexAdd <= Rx_INDEX;
-      
       IF RST = '0' THEN
         Rx_BUF <= (OTHERS => '0');
       ELSIF rising_edge(CLK) THEN
+        index := 0;
         CASE rx_state IS
           WHEN 0 =>
             IF Rx_BUSY = '1' THEN
@@ -146,50 +229,44 @@ utt: UART
             END IF;
           WHEN 1 =>
             IF Rx_BUSY = '0' THEN
-              IF Rx_ERROR = '0' THEN
-                Rx_BUF <= Rx_BUF (lb-1-d_width DOWNTO 0) & DATA_OUT;
-                IF Rx_INDEX < lb THEN
-                  Rx_IndexAdd <= Rx_INDEX + d_width;
-                END IF;
+              Rx_BUF <= DATA_OUT & Rx_BUF (lb-1 DOWNTO d_width);
+              IF Rx_INDEX < lb THEN
+                index := d_width;
               END IF;
               rx_state <= 0;
             END IF;
         END CASE;
       END IF;
+      Rx_IndexAdd <= index;
       END PROCESS;
       
       Transmitter: PROCESS (RST, CLK)
+      VARIABLE index      : NATURAL RANGE 0 to lb-1;
       BEGIN
-      Tx_IndexSub <= Tx_INDEX;
-      
       IF RST = '0' THEN
         tx_state <= 0;
       ELSIF rising_edge(CLK) THEN
+        index := 0;
         CASE tx_state IS
           WHEN 0 =>
             IF Tx_BUSY = '0' AND Tx_INDEX > 0 THEN
               DATA_SEND <= '1';
+              DATA_IN <= Tx_BUF (lb-Tx_INDEX+d_width-1 DOWNTO lb-Tx_INDEX);
               tx_state <= 1;
             END IF;
           WHEN 1 =>
-            DATA_IN <= Tx_BUF (Tx_INDEX-1 DOWNTO Tx_INDEX-d_width);
+            DATA_SEND <= '0';
+            IF Tx_INDEX > 0 THEN
+              index := d_width;
+            END IF;
             tx_state <= 2;
           WHEN 2 =>
-            DATA_SEND <= '0';
-            tx_state <= 3;
-          WHEN 3 =>
             IF Tx_BUSY = '1' THEN
-              tx_state <= 4;
-            END IF;
-          WHEN 4 =>
-            IF Tx_BUSY = '0' THEN
-              IF Tx_INDEX > 0 THEN
-                Tx_IndexSub <= Tx_INDEX - d_width;
-              END IF;
               tx_state <= 0;
             END IF;
         END CASE;
       END IF;
+      Tx_IndexSub <= index;
       END PROCESS;
       
  registerC: PROCESS(RST, CLK)
@@ -197,25 +274,25 @@ utt: UART
    IF RST = '0' THEN
      Rx_INDEX <= 0;
      Tx_INDEX <= 0;
-   ELSIF rising_edge(CLK) THEN
-     IF Rx_INDEX > Rx_IndexSub THEN
-       IF Rx_INDEX < Rx_IndexAdd THEN
-         Rx_INDEX <= Rx_IndexAdd + Rx_IndexSub - RX_INDEX;
+   ELSIF falling_edge(CLK) THEN
+     IF 0 < Rx_IndexSub THEN
+       IF 0 < Rx_IndexAdd THEN
+         Rx_INDEX <= RX_INDEX + Rx_IndexAdd - Rx_IndexSub;
        ELSE
-         Rx_INDEX <= Rx_IndexSub;
+         Rx_INDEX <= Rx_INDEX - Rx_IndexSub;
        END IF;
      ELSE
-       Rx_INDEX <= Rx_IndexAdd;
+       Rx_INDEX <= Rx_INDEX + Rx_IndexAdd;
      END IF;
           
-     IF Tx_INDEX > Tx_IndexSub THEN
-       IF Tx_INDEX < Tx_IndexAdd THEN
-         Tx_INDEX <= Tx_IndexAdd + Tx_IndexSub - Tx_INDEX;
+     IF 0 < Tx_IndexSub THEN
+       IF 0 < Tx_IndexAdd THEN
+         Tx_INDEX <= Tx_INDEX + Tx_IndexAdd - Tx_IndexSub;
        ELSE
-         Tx_INDEX <= Tx_IndexSub;
+         Tx_INDEX <= Tx_INDEX - Tx_IndexSub;
        END IF;
      ELSE
-       Tx_INDEX <= Tx_IndexAdd;
+       Tx_INDEX <= Tx_INDEX + Tx_IndexAdd;
      END IF;
    END IF;
    END PROCESS;
