@@ -48,18 +48,7 @@ with open("key_encrypted32.txt", "r") as in_file:
     s = ser.read( size=int((LENGTH/8)) )
     tiempoFinal = time.time()
     transcurrido = tiempoFinal - tiempoInicio
+    out_file.writelines(s.hex())
+    out_file.writelines(transcurrido)
     print (s.hex())
     print (str(transcurrido) + ' Segundotes')
-#         # mensaje = []
-#         # while len(line) < LENGTH: #Añadimos los 0 necesarios para que el numero sea de 1024
-#         #     line = '0' + line
-#         # for i in range(LENGTH -1 , -1, -2):
-#         #     numero = line[i-1] + line[i]
-#         #     s = ser.write(bytearray.fromhex(numero))
-
-# print(ser.name)
-# s = ser.read( size=int((LENGTH/8)) )
-# tiempoFinal = time.time()
-# transcurrido = tiempoFinal - tiempoInicio
-# print (s.hex())
-# print (transcurrido)
