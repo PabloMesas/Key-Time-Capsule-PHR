@@ -8,6 +8,7 @@
 
 if [ $# = 1 ];
 then
+
     cypher_time=$1
     
     #Random n
@@ -20,13 +21,18 @@ then
     cat 'test_result.txt'
     echo ' Segundotes'
     
+    ./fpga_ratio_analyze
+    
     #Use time to get a good key
     ./encrypt_key $cypher_time
     
     file_origin='key_encrypted.txt'
     file_exit='key_decrypted.txt'
-    ./descifrado.py $file_test_origin $file_test_exit
+    ./descifrado.py $file_origin $file_exit
+    
+    cat 'key_decrypted.txt'
+    echo ' Segundotes'
     
 else
-    echo 'Takes exactly 1 argument "cypher_time" (seconds)'
+    echo '$0 takes exactly 1 argument "cypher_time" (seconds)'
 fi
