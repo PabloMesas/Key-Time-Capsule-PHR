@@ -9,12 +9,6 @@ def send_data_board(mens, ser):
         for i  in range(0, int(LENGTH/2), 1):
             ser.write(num[i])
 
-def benchmar (num, ser):
-    #ck, a, n, t = mens
-    for num in mens:
-        for i  in range(0, int(LENGTH/2), 1):
-            ser.write(num[i])
-
 with open("key_encrypted32.txt", "r") as in_file:
     out_file = open('key_decrypted.txt', 'w')
 
@@ -49,6 +43,7 @@ with open("key_encrypted32.txt", "r") as in_file:
     tiempoFinal = time.time()
     transcurrido = tiempoFinal - tiempoInicio
     out_file.writelines(s.hex())
-    out_file.writelines(transcurrido)
+    out_file.write('\n')
+    out_file.writelines(str(transcurrido))
     print (s.hex())
     print (str(transcurrido) + ' Segundotes')
