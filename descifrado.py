@@ -42,9 +42,9 @@ else:
             num.reverse()
             mensaje.append(num)
 
-        tiempoInicio = time.time()
         print(ser.name)
         send_data_board(mensaje, ser)
+        tiempoInicio = time.time()
         s = ser.read( size=int((LENGTH/8)) )
         tiempoFinal = time.time()
         transcurrido = tiempoFinal - tiempoInicio

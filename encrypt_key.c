@@ -42,27 +42,40 @@ int main (int argc, char *argv[]) {
   }
   mpz_inp_str(n, fp, 16);
   mpz_inp_str(fiN, fp, 16);
+  mpz_inp_str(base, fp, 16);
   mpf_inp_str(time_f, fp, 10);
   fclose(fp);
+  mpz_out_str(NULL, 16, n);
+  printf("\n");
+  mpz_out_str(NULL, 16, fiN);
+  printf("\n");
+  mpz_out_str(NULL, 16, base);
+  printf("\n");
+  mpf_out_str(NULL, 10, 10, time_f);
+  printf("\n");
 
   // Calculate T parameter (T = time(seconds) * ratio(square per
   // per seconds).
   mpf_mul_ui(time_f, time_f, secondsEncrypted);
   mpz_set_f(time_z, time_f);
+  mpz_out_str(NULL, 16, time_z);
+  printf("\n");
 
   // Obtaining random base.
-  getRandomBase(base, n);
+  //getRandomBase(base, n);
 
   // exp = 2 ^ time mod fi(n)
   mpz_set_ui (two, 2L);
   mpz_powm(exp, two, time_z, fiN);
 
-  // powMod = 2 ^ exp mod n
+  // powMod = base ^ exp mod n
   mpz_powm(powMod, base, exp, n);
 
   // Get key value and load it into a mpz_int
   fp = fopen("key.txt", "r");
   mpz_inp_str(key, fp, 10);
+  mpz_out_str(NULL, 10, key);
+  printf("\n");
   fclose(fp);
   // Obtain encrypted key
   mpz_add(encryptedKey, key, powMod);
@@ -71,9 +84,9 @@ int main (int argc, char *argv[]) {
   fp = fopen("key_encrypted.txt", "w");
   mpz_out_str(fp, 16, encryptedKey);
   fputc('\n', fp);
-  mpz_out_str(fp, 16, n);
-  fputc('\n', fp);
   mpz_out_str(fp, 16, base);
+  fputc('\n', fp);
+  mpz_out_str(fp, 16, n);
   fputc('\n', fp);
   mpz_out_str(fp, 16, time_z);
   fclose(fp);
