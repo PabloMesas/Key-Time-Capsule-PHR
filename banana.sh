@@ -32,6 +32,7 @@ then
     
     cat 'key_decrypted.txt'
     echo ' Segundotes'
+    cat 'show_results.txt'
     
 else
     echo '$0 takes exactly 1 argument "cypher_time" (seconds)'
