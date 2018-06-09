@@ -36,10 +36,10 @@ architecture FULL of top_tb is
     constant clk_period  : time := 10 ns;
 	constant uart_period : time := 104.17 us;
 	constant data_length : natural := 8;
-	constant data_ck     : std_logic_vector(31 downto 0) := "00000000000000000000000100111111";
-	constant data_a      : std_logic_vector(31 downto 0) := "00000000000000000000000000000011";
-	constant data_n      : std_logic_vector(31 downto 0) := "00000000000000000000001011111111";
-	constant data_t      : std_logic_vector(31 downto 0) := "00000000000000000000000000000101";
+	constant data_ck     : std_logic_vector(31 downto 0) := "00100000111101101100010100110101";
+	constant data_a      : std_logic_vector(31 downto 0) := "00101011101000101010111010011101";
+	constant data_n      : std_logic_vector(31 downto 0) := "01101101000110001101010011101111";
+	constant data_t      : std_logic_vector(31 downto 0) := "00000000000000010000000000000000";
 	
 	COMPONENT top IS
         PORT (

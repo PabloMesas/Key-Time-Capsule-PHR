@@ -18,14 +18,9 @@ t = b'00000000000000000000000000000101'
 print("T:  " + str(t)+ " " + str(int(t, 2)))
 ser.write([0x05, 0x00, 0x00, 0x00])
 
-print("Waiting for result...")
-
-
-
-
 k = b'01110011'
 print("K: " + str(k)+ " " + str(int(k, 2)))
-k_1 = ser.read()
+k_1 = ser.read(size=1)
 print("    " + str(bin(ord(k_1)))+ " " + str(ord(k_1)))
 
 ser.close()

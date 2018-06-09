@@ -100,6 +100,7 @@ COMPONENT decrypt_module IS
       Y             : natural:= lk);   
   PORT (
       CLK           : IN std_logic;
+      RST           : IN std_logic;
       LOAD          : IN std_logic;
       CK            : IN std_logic_vector(L-1 DOWNTO 0);
       A             : IN std_logic_vector(L-1 DOWNTO 0);
@@ -140,6 +141,7 @@ decrypter: decrypt_module
         )   
     PORT MAP(
         CLK           => CLK,
+        RST           => RST,
         LOAD          => LOAD,
         CK            => CK,
         A             => A,
@@ -147,7 +149,7 @@ decrypter: decrypt_module
         T             => T,
         K             => K,
         F             => F
-        );  
+        );
       
   Controller: PROCESS (RST, CLK)
   VARIABLE r_index      : NATURAL RANGE 0 to lb;
