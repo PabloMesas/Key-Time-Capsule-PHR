@@ -19,7 +19,7 @@ else:
         out_file = open(sys.argv[2], 'w')
 
 
-        ser = serial.Serial('/dev/ttyUSB1', 9600) # serial.Serial('/dev/ttyUSB1', 9600)
+        ser = serial.Serial('/dev/ttyUSB1', 9600)
         mensaje = []
 
         for i in range(0,4):
