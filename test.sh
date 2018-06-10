@@ -34,5 +34,5 @@ then
     echo ' sec.'
     
 else
-    echo '$0 takes exactly 1 argument "cypher_time" (seconds)'
+    echo $0' takes exactly 1 argument "cypher_time" (seconds)'
 fi
