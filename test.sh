@@ -31,7 +31,7 @@ then
     py/descifrado.py $file_origin $file_exit
     
     cat 'key_decrypted.txt'
-    echo ' sec.s'
+    echo ' sec.'
     
 else
     echo '$0 takes exactly 1 argument "cypher_time" (seconds)'
