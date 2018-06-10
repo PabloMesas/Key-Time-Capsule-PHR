@@ -19,7 +19,7 @@ then
     py/descifrado.py $file_test_origin $file_test_exit
     
     cat 'test_result.txt'
-    echo ' Segundotes'
+    echo ' sec.'
     
     bin/fpga_ratio_analyze
     
@@ -31,7 +31,7 @@ then
     py/descifrado.py $file_origin $file_exit
     
     cat 'key_decrypted.txt'
-    echo ' Segundotes'
+    echo ' sec.s'
     
 else
     echo '$0 takes exactly 1 argument "cypher_time" (seconds)'
