@@ -6,11 +6,18 @@ import sys
 
 LENGTH = 8 #Longitud del cuerpo N en bytes (multiplo de 8)
 
+def toInt (ascii):
+    lenx = len(ascii)
+    return sum(ord(ascii[byte])<<8*(lenx-byte-1) for byte in range(lenx))
+
 def send_data_board(mens, ser):
     #ck, a, n, t = mens
     for num in mens:
         for i  in range(0, int(LENGTH/2), 1):
             ser.write(num[i])
+        ack = ser.read(size=len(num))
+        ack = "".join(map(chr, ack))[::-1]
+        print("    " + str(hex(toInt(ack)))+ " " + str(toInt(ack)))
 
 if(len(sys.argv) != 3):
     print (sys.argv[0], 'takes exactly 2 argument (', len(sys.argv) - 1, ' given)' )
