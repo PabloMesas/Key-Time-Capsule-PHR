@@ -13,7 +13,7 @@ then
     
     echo 'Creating a decrypt test...\n'
     #Random n
-    bin/fpga_square_tester 500000
+    C/bin/fpga_square_tester 500000
     
     echo 'Launching the decrypt test to the FPGA...'
     file_test_origin='decrypt_test.txt'
@@ -25,11 +25,11 @@ then
     echo ' sec.\n'
     
     echo 'Obtaining ratio square per secons with the modulus N and base a tested...'
-    bin/fpga_ratio_analyze
+    C/bin/fpga_ratio_analyze
     
-    echo '\nEncrypting key allocated in key.txt for ' $1 ' seconds...'
+    echo '\nEncrypting key allocated in key.txt for ' $cypher_time ' seconds...'
     #Use time to get a good key
-    bin/encrypt_key $cypher_time
+    C/bin/encrypt_key $cypher_time
     
     echo '\nLaunching the decrypt process to the FPGA...'
     file_origin='key_encrypted.txt'
