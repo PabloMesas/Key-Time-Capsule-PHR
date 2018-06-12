@@ -165,7 +165,7 @@ begin
 		rx <= '1'; -- stop bit
 		wait for uart_period;
 
-		wait;
+		wait for 13 ms;
 
 	end process;
 

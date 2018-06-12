@@ -36,7 +36,7 @@ entity mult is
     Port ( CLK : IN std_logic;
            RST : in STD_LOGIC;
            LOAD : in STD_LOGIC;
-           MUL1 : in STD_LOGIC_VECTOR (l-1 downto 0) := (OTHERS => '0');
+           MUL1 : in STD_LOGIC_VECTOR (l-1 downto 0);
            S : out STD_LOGIC_VECTOR (l*2-1 downto 0);
            F : out STD_LOGIC := '0');
 end mult;
@@ -44,13 +44,16 @@ end mult;
 ARCHITECTURE Behavioral of mult is
 TYPE multiplier_machine IS (wait_d, calc1_d);
 -- SIGNAL Declerations
-SIGNAL calc                 : natural RANGE 0 TO 1      := 0                            ;
-SIGNAL r1                   : unsigned(l-1 DOWNTO 0)    := (OTHERS => '0')              ;
+SIGNAL calc                 : natural RANGE 0 TO 1        := 0                            ;
+SIGNAL calc_status          : natural RANGE 0 TO 1        := 0                            ;
+
+SIGNAL r1                   : unsigned(l-1 DOWNTO 0)      := (OTHERS => '0')              ;
+SIGNAL temp1                : unsigned(l*2-1 DOWNTO 0)    := (OTHERS => '0')              ;
+
 
 begin
 
   PROCESS(RST, LOAD, CLK)
-  VARIABLE sol      : unsigned      (L*2-1 DOWNTO 0);
   BEGIN
     IF RST = '0' THEN
       F <= '0';
@@ -61,11 +64,18 @@ begin
       calc <= 1;
     ELSIF rising_edge(CLK) THEN
       IF calc = 1 AND LOAD = '0' THEN
-        sol := r1 * r1;
-        F <= '1';
-        calc <= 0;
+        case calc_status is
+          when 0 => 
+            temp1 <= r1 * r1;
+            calc_status <= 1;
+          when 1 => 
+            calc <= 0;
+            F <= '1';
+            calc_status <= 0;
+          when others => null;
+        end case;
       END IF;
-      S <= std_logic_vector(sol);
+      S <= std_logic_vector(temp1);
     END IF;
   END PROCESS;
 

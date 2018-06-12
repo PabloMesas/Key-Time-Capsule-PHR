@@ -60,7 +60,7 @@ BEGIN
 
 	--generate clock enable pulses at the baud rate and the oversampling rate
 	PROCESS(reset_n, clk)
-		VARIABLE count_baud	:	INTEGER RANGE 0 TO 10_417-1 := 0;			--counter to determine baud rate period
+		VARIABLE count_baud	    :	INTEGER RANGE 0 TO clk_freq/baud_rate-1 := 0;			--counter to determine baud rate period
 		VARIABLE count_os		:	INTEGER RANGE 0 TO clk_freq/baud_rate/os_rate-1 := 0;	--counter to determine oversampling period
 	BEGIN
 		IF(reset_n = '0') THEN											--asynchronous reset asserted

@@ -38,21 +38,23 @@ entity modulus is
            LOAD : in STD_LOGIC;
            NUM : in STD_LOGIC_VECTOR (l*2-1 downto 0);
            N : in STD_LOGIC_VECTOR (l-1 downto 0);
-           S : out STD_LOGIC_VECTOR (l-1 downto 0) := (OTHERS => '0');
+           S : out STD_LOGIC_VECTOR (l-1 downto 0);
            F : out STD_LOGIC := '0');
 end modulus;
 
 ARCHITECTURE Behavioral of modulus is
 TYPE multiplier_machine IS (wait_d, calc1_d);
 -- SIGNAL Declerations
-SIGNAL calc                 : natural RANGE 0 TO 2      := 0                            ;
-SIGNAL r1                   : unsigned(l*2-1 DOWNTO 0)  := (OTHERS => '0')              ;
-SIGNAL r2                   : unsigned(l-1 DOWNTO 0)    := (OTHERS => '0')              ;
+SIGNAL calc                 : natural RANGE 0 TO 1      := 0                            ;
+SIGNAL calc_status          : natural RANGE 0 TO 1      := 0                            ;
+
+SIGNAL r1                   : unsigned(l*2-1 DOWNTO 0)    := (OTHERS => '0')              ;
+SIGNAL r2                   : unsigned(l-1 DOWNTO 0)      := (OTHERS => '0')              ;
+SIGNAL temp1                : unsigned(l-1 DOWNTO 0)      := (OTHERS => '0')              ;
 
 begin
 
   PROCESS(RST, LOAD, CLK)
-  VARIABLE sol              : unsigned(l-1 DOWNTO 0)    := (OTHERS => '0')              ;
   BEGIN
     IF RST = '0' THEN
       F <= '0';
@@ -63,21 +65,19 @@ begin
       r2 <= unsigned(N);
       calc <= 1;
     ELSIF rising_edge(CLK) THEN
-      CASE calc IS
-        WHEN 0 =>
-          calc <= 0;
-        WHEN 1 =>
-          IF LOAD = '0' THEN
-            sol := r1 mod r2;
-            calc <= 2;
-          ELSE
-            
-          END IF;
-        WHEN 2 =>
-          S <= std_logic_vector(sol);
-          F <= '1';
-          calc <= 0;
-      END CASE;
+      IF calc = 1 AND LOAD = '0' THEN
+        case calc_status is
+          when 0 => 
+            temp1 <= r1 mod r2;
+            calc_status <= 1;
+          when 1 => 
+            calc <= 0;
+            F <= '1';
+            calc_status <= 0;
+          when others => null;
+        end case;
+      END IF;
+      S <= std_logic_vector(temp1);
     END IF;
   END PROCESS;
 

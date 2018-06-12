@@ -74,7 +74,9 @@ ARCHITECTURE test_1 OF decrypt_module_tb IS
       wait for clk_period/2;
     end process;
 
-    LOAD <= '0' after 0 ns, '1' after 30 ns, '0' after 40 ns;
+    LOAD <= '1' after 30 ns, '0' after 40 ns,
+            '1' after 1.75 us, '0' after 1.76 us,
+            '1' after 3.42 us, '0' after 3.43 us;
     
 
 END test_1;

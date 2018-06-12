@@ -42,7 +42,7 @@ ENTITY top IS
 END top;
 
 ARCHITECTURE Behavioral OF top IS
-TYPE cipher_machine     IS (r_CK, r_A, r_N, r_T, l_DATA, l_DATA1, w_K, t_K);
+TYPE cipher_machine     IS (r_CK, t_CK, r_A, t_A, r_N, t_N, r_T, t_T, l_DATA, l_DATA1, w_K, t_K);
 -- SIGNAL Declerations
 SIGNAL tiuring_state    : cipher_machine                            := r_CK             ;
 SIGNAL tx_state         : natural           RANGE 0 TO 2            := 0                ;
@@ -168,32 +168,56 @@ decrypter: decrypt_module
             IF Rx_INDEX >= lr THEN
               r_index := lr;
             END IF;
-            tiuring_state <= r_A;
+            Tx_BUF <= Rx_BUF(lb-Rx_INDEX+lr-1 DOWNTO lb-Rx_INDEX) & Tx_BUF (lb-1 DOWNTO lr);
+            tiuring_state <= t_CK;
           END IF;
+        WHEN t_CK =>
+          IF Tx_INDEX < lb THEN
+            t_index := lr;
+          END IF;
+          tiuring_state <= r_A;
         WHEN r_A =>
           IF Rx_INDEX >= lr THEN
             A <= Rx_BUF(lb-Rx_INDEX+lr-1 DOWNTO lb-Rx_INDEX);
             IF Rx_INDEX >= lr THEN
               r_index := lr;
             END IF;
-            tiuring_state <= r_N;
+            Tx_BUF <= Rx_BUF(lb-Rx_INDEX+lr-1 DOWNTO lb-Rx_INDEX) & Tx_BUF (lb-1 DOWNTO lr);
+            tiuring_state <= t_A;
           END IF;
+        WHEN t_A =>
+            IF Tx_INDEX < lb THEN
+              t_index := lr;
+            END IF;
+            tiuring_state <= r_N;          
         WHEN r_N =>
           IF Rx_INDEX >= lr THEN
             N <= Rx_BUF(lb-Rx_INDEX+lr-1 DOWNTO lb-Rx_INDEX);
             IF Rx_INDEX >= lr THEN
               r_index := lr;
             END IF;
-            tiuring_state <= r_T;
+            Tx_BUF <= Rx_BUF(lb-Rx_INDEX+lr-1 DOWNTO lb-Rx_INDEX) & Tx_BUF (lb-1 DOWNTO lr);
+            tiuring_state <= t_N;
           END IF;
+        WHEN t_N =>
+            IF Tx_INDEX < lb THEN
+              t_index := lr;
+            END IF;
+            tiuring_state <= r_T;          
         WHEN r_T =>
           IF Rx_INDEX >= lr THEN
             T <= Rx_BUF(lb-Rx_INDEX+lr-1 DOWNTO lb-Rx_INDEX);
             IF Rx_INDEX >= lr THEN
               r_index := lr;
             END IF;
-            tiuring_state <= l_DATA;
+            Tx_BUF <= Rx_BUF(lb-Rx_INDEX+lr-1 DOWNTO lb-Rx_INDEX) & Tx_BUF (lb-1 DOWNTO lr);
+            tiuring_state <= t_T;
           END IF;
+        WHEN t_T =>
+            IF Tx_INDEX < lb THEN
+              t_index := lr;
+            END IF;
+            tiuring_state <= l_DATA;          
         WHEN l_DATA =>
             LOAD <= '1';
             tiuring_state <= l_DATA1;
