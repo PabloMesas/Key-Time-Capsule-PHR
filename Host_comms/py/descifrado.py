@@ -4,7 +4,7 @@ import time
 import serial
 import sys
 
-LENGTH = 8 #Longitud del cuerpo N en bytes (multiplo de 8)
+LENGTH = 8 # Numero de cifras hexadecimales del cuerpo N (multiplo de 8)
 
 def toInt (ascii):
     lenx = len(ascii)
